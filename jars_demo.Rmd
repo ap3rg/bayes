@@ -125,11 +125,6 @@ binom.test(black_beans, sample_size, p = h0, alternative = "greater")
 knitr::include_graphics("beans_deriv.png")
 ```
 
-What we will do now is get some intuition as to what we are doing when we are doing Bayesian inference. We will model this as a binomial distribution. 
-
-$Y \sim \text{Binomial}(n,p)$
-
-Where $Y$ is proportion of black beans to kidney beans, $n$ is the number of draws (or sample size) and $p$ is the number of successes (i.e. drawing a black bean).
 
 $P(H):$
 
@@ -139,11 +134,34 @@ $P(-{H}):$
 
 $P(E|-H):$
 
+If we were to calculate the probability based on the above ilustration, we would have:
 
-To finish the model specification, we need to define a prior distribution on $\theta$. In our example, a tractable model will provide enough flexibility to encode a wide spectrum of prior beliefs. In particular the beta distribution is a good choice, since it provides both flexibility and mathematical tractability. 
+\[
+P(H \mid E)
+= 
+\frac{P(E \mid H)\,P(H)}
+       {P(E \mid H)\,P(H) + P(E \mid -H)\,P(-H)}
+\]
+
+\[
+P(H \mid E)
+= \frac{3 * 6}
+       {3 * 6 + 3*3}
+= 0.66
+\]
+
+
+However, we are sampling and so we know there is variability in our estimates, so we want to move to the world of probability distributions. What we will do now is get some intuition as to what we are doing when we are doing Bayesian inference. We will model this as a binomial distribution. 
+
+$Y \sim \text{Binomial}(n,p)$
+
+Where $Y$ is proportion of black beans to kidney beans, $n$ is the number of draws (or sample size) and $p$ is the number of successes (i.e. drawing a black bean). This is where our likelihood, $P(E \mid H)$, comes from.
+
+To finish the model specification, we need to define a prior distribution $P(H)$. We will use the beta distribution, since it provides both flexibility and mathematical tractability. 
+
 Let us look briefly at the Beta distribution to understand what we mean by this:
 
-```{r}
+```{r, warning=FALSE}
 # Define Beta parameters
 params <- data.frame(
   alpha = c(1, 2, 10),
@@ -181,14 +199,14 @@ ggplot(df, aes(theta, density, color = label)) +
 - The Beta distribution is also bounded so it is good to model probabilities
 - the Beta distribution is the conjugate prior of the binomial — meaning that the posterior distribution of p given the data is also Beta, meaning we can analytically solve this (instead of using fancier methods like MCMC).
 
-#### 1. Is the sample different from what we need (i.e $\neq 0.7$)?
+#### With a posterior distribution we can answer all of the three questions above!
 
 ```{r}
 n <- sample_size 
 y <- black_beans
 p0 <- h0                 
 
-#  Uninformative Beta prior
+#  ADJUST YOUR PRIOR BASED ON THE INFORMATION UNDER THE JARLID
 alpha_prior = 1 
 beta_prior = 1
 
@@ -205,8 +223,6 @@ Let us plot the posterior. This is a key difference between Frequentist and Baye
 set.seed(1)
 M <- 200000                   # draws
 p_draws <- rbeta(M, alpha_post, beta_post)
-target <- 0.7
-tol    <- 0.01                
 
 
 # Generate grid for posterior density
@@ -226,7 +242,7 @@ ggplot(data.frame(theta, posterior_density), aes(theta, posterior_density)) +
 
 ```
 
-
+And here we arrive to the credible interval
 ```{r}
 # Credible interval
 # Normalize so that it adds to 1 and we can think about ci more directly
@@ -260,64 +276,9 @@ printf("(%f, %f)", ci_lower, ci_upper)
 
 ```
 
-We can also do hypothesis testing using the Bayes Factor which is defined as a ratio between the probability of obtaining the observed data given the null hypothesis, divided by the probability of obtaining the observed data under the alternative hypothesis.
-
-For two competing hypotheses \(H_0\) and \(H_a\),
-the Bayes factor in favor of \(H_a\) over \(H_0\) is
-
-\[
-B_{a,0}
-= \frac{P(D \mid H_a)}{P(D \mid H_0)},
-\]
-where \(P(D \mid H_i)\) is the marginal likelihood (or evidence)
-of the data under hypothesis \(H_i\).
-
-This simplifies to:
-
-\[
-B_{10}
-= 
-\frac{B(\alpha_{\text{prior}} + y,\,
-        \beta_{\text{prior}} + n - y)}
-     {B(\alpha_{\text{prior}},\, \beta_{\text{prior}})
-      \; p_0^{\,y}(1-p_0)^{\,n - y}},
-\]
-where \(B(a,b)\) is the Beta function
-\(B(a,b) = \int_0^1 t^{a-1}(1-t)^{b-1}\,dt.\)
-
-If the result >1 , the data favor the alternative hypothesis.
-If it’s <1, the data favor the null hypothesis.
-
-1. Translate the question into probability terms
-
-$H_0: p = p_{avg} (jar is average)$
-$H_a: p > p_{avg} ()
-
-2. Set up the hypotheses
-3. Compute Bayes factor
-
+#### What is the probability that the jar has more than 70% black beans?
 
 ```{r}
-BF10 <- (beta(alpha_post, beta_post) / beta(alpha_prior, beta_prior)) / (p0^y * (1 - p0)^(n - y))
-
-BF10
-```
-
-#### 2.  Does the sample have more black beans than we need (i.e $> 0.7$)?
-```{r}
-
-prob_more_black_than_avg <- pbeta(p0, alpha_post, beta_post)  # P(p < p0 | data)
-prob_more_black_than_avg
-
-```
-
-#### 3. What is the probability that the jar has more than 70% black beans?
-
-
-
-
-```{r}
-
-prob_near_60 <- length(p_draws[(p_draws > 0.6)]) / M
-prob_near_60
+prob_70 <- length(p_draws[(p_draws > 0.7)]) / M
+prob_70
 ```
