@@ -15,18 +15,17 @@ library(R.utils)
 ```
 
 ## Frequentism with beans
-
 Take a sample from your jar and count black beans to kidney beans. 
 
 We are interested in the proportion (p) of black beans, because we need at least 70% of the jar content to be black beans for our recipe to work. 
-```{r}
+```{r Initialization}
 # define your H_0
-h0 = 0.7
+h0 = 0.7 
 
 
-# adjust based on your sample
-kidney_beans = 30
-black_beans = 74
+# ADJUST BASED ON YOUR SAMPLE
+kidney_beans =  ### YOUR SAMPLE HERE
+black_beans =  ## YOUR SAMPLE
 
 sample_size = kidney_beans+black_beans
 
@@ -34,61 +33,26 @@ sample_size = kidney_beans+black_beans
 
 **Answer the following questions**
 
-1. Is the sample different from what we need (i.e $\neq 0.7$)?
+1. Does the sample have more black beans than we need (i.e $> 0.7$)?
 	
-2. Does the sample have more black beans than we need (i.e $> 0.7$)?
+2. What is our "confidence" on this estimate?
 
 3. What is the probability that the jar has more than 70% black beans?
 
 
-#### 1. Is the sample different from what we need (i.e $\neq 0.7$)?
+#### 1. Does the sample have more black beans than we need (i.e $> 0.7$)?
 
-
-\textbf{Two-sided binomial test: testing } H_0: p = 0.7
-
-We have data \( X \sim \mathrm{Binomial}(n, p_0) \) with \( n = \text{sample_size} \), \( p_0 = h0 \),
-and observed value \( x_{\text{obs}} = \text{black_beans} \).
-
-\[
-H_0: p = p_0 = 0.7
-\quad \text{versus} \quad
-H_1: p \neq 0.7.
-\]
-
-Under \( H_0 \),
-\[
-P(X = k \mid p_0) = \binom{n}{k} p_0^{\,k}(1 - p_0)^{\,n - k}.
-\]
-
-The two-sided p-value is the probability, under \( H_0 \),
-of observing a result as or more extreme (in both directions) than \( x_{\text{obs}} \):
-\[
-\text{p-value}
-= P_{p_0}\!\big(|X - n p_0| \ge |x_{\text{obs}} - n p_0|\big)
-= \sum_{k: |k - n p_0| \ge |x_{\text{obs}} - n p_0|}
-\binom{n}{k} p_0^{\,k}(1 - p_0)^{\,n - k}.
-\]
- 
-```{r}
-
-# with code this is how we are answering the question.
-binom.test(black_beans, sample_size, p = h0, alternative = "two.sided")
-
-```
-
-	
-#### 2. Does the sample have more black beans than we need (i.e $> 0.7$)?
 
 \textbf{One-sided binomial test: derivation of the p-value}
 
 We test
 \[
-H_0: p = p_0 = 0.6 
+H_0: p = p_0 > 0.7 
 \quad \text{versus} \quad
-H_1: p > 0.6.
+H_1: p \leq 0.7.
 \]
 
-Given data \( X \sim \mathrm{Binomial}(n, p_0) \) with \( n = 10 \) and observed \( x_{\text{obs}} = 5 \).
+Given data \( X \sim \mathrm{Binomial}(n, p_0) \) with \( n = \text{sample_size} \) and observed \( x_{\text{obs}} = \text{black_beans} \).
 
 The probability mass function (pmf) under \( H_0 \) is
 \[
@@ -105,10 +69,22 @@ The one-sided (\emph{greater}) p-value is defined as the probability, under \( H
 \]
 
 ```{r}
-# with code this is how we are answering the question.
-binom.test(black_beans, sample_size, p = h0, alternative = "greater")
+# Calculate the p-value.
+result <- binom.test(black_beans, sample_size, p = h0, alternative = "greater")
+result$p.value
 
 ```
+#### 2.  What is our "confidence" on this estimate?
+Calculate the the 95% confidence interval for p>0.7.
+
+```{r}
+# Calculate the confidence interval.
+result <- binom.test(black_beans, sample_size, p = h0, alternative = "greater")
+result$conf.int
+
+```
+
+
 #### 3. What is the probability that the jar has more than 70% black beans?
 
 ???
@@ -130,30 +106,14 @@ $P(-{H}):$
 
 $P(E|-H):$
 
-If we were to calculate the probability based on the above ilustration, we would have:
 
-\[
-P(H \mid E)
-= 
-\frac{P(E \mid H)\,P(H)}
-       {P(E \mid H)\,P(H) + P(E \mid -H)\,P(-H)}
-\]
-
-\[
-P(H \mid E)
-= \frac{3 * 6}
-       {3 * 6 + 3*3}
-= 0.66
-\]
-
-
-However, we are sampling and so we know there is variability in our estimates, so we want to move to the world of probability distributions. What we will do now is get some intuition as to what we are doing when we are doing Bayesian inference. We will model this as a binomial distribution. 
+From the Frequentist approach we have: 
 
 $Y \sim \text{Binomial}(n,p)$
 
 Where $Y$ is proportion of black beans to kidney beans, $n$ is the number of draws (or sample size) and $p$ is the number of successes (i.e. drawing a black bean). This is where our likelihood, $P(E \mid H)$, comes from.
 
-To finish the model specification, we need to define a prior distribution $P(H)$. We will use the beta distribution, since it provides both flexibility and mathematical tractability. 
+However we don't know what our prior $P(H)$ is, instead we define it as a dristirbution that captures our prior believes. We will use the Beta distribution, since it provides both flexibility and mathematical tractability. 
 
 Let us look briefly at the Beta distribution to understand what we mean by this:
 
@@ -191,6 +151,9 @@ ggplot(df, aes(theta, density, color = label)) +
   theme(legend.position = "top")
 
 ```
+
+
+
 - The Beta distribution is flexible because it allows us to model essentially any shape by adjusting the proportion of $\alpha$ to $\beta$. 
 - The Beta distribution is also bounded so it is good to model probabilities
 - the Beta distribution is the conjugate prior of the binomial — meaning that the posterior distribution of p given the data is also Beta, meaning we can analytically solve this (instead of using fancier methods like MCMC).
@@ -198,20 +161,42 @@ ggplot(df, aes(theta, density, color = label)) +
 #### With a posterior distribution we can answer all of the three questions above!
 
 ```{r}
+#  ADJUST YOUR PRIOR BASED ON THE INFORMATION UNDER THE JAR-LID
+alpha_prior = ## YOUR PRIOR HERE
+beta_prior = ## YOUR PRIOR HERE
+
+
+## DO NOT CHANGE
 n <- sample_size 
 y <- black_beans
-p0 <- h0                 
+p0 <- h0  
+# Plot your beta to make sure it is sensible
+# Create a grid of p values and corresponding Beta density
+df <- data.frame(
+  p = seq(0, 1, length.out = 1000)
+)
+df$density <- dbeta(df$p, alpha_prior, beta_prior)
 
-#  ADJUST YOUR PRIOR BASED ON THE INFORMATION UNDER THE JARLID
-alpha_prior = 1 
-beta_prior = 1
+# Plot
+ggplot(df, aes(x = p, y = density)) +
+  geom_line(color = "#1f77b4", linewidth = 1.2) +
+  labs(
+    title = "Prior Distribution",
+    x = expression(p),
+    y = "Density"
+  ) +
+  theme_bw(base_size = 13)
+```
 
+
+```{r}
 # Beta posterior. The reason we know this form explicitly is because we can solve 
-# the multiplication analytically (we will work this out on the board).
+# the multiplication analytically (as Elvira showed on the board).
 alpha_post = alpha_prior + y 
 beta_post = beta_prior + n - y
 
 ```
+
 
 Let us plot the posterior. This is a key difference between Frequentist and Bayesian approaches. We have a posterior distribution that we can sample in order to do inference.
 ```{r}
@@ -268,8 +253,8 @@ printf("(%f, %f)", ci_lower, ci_upper)
 
 # Since we the Beta function can be solved analytically, 
 # this is equivalent to the following code (which you will use in the next part)
-# ci <- qbeta(c(0.025, 0.975), alpha_post, beta_post)
-
+# cred_int_lower = qbeta(0.025, alpha_post, beta_post)
+# cred_int_upper = qbeta(0.975, alpha_post, beta_post)
 ```
 
 #### What is the probability that the jar has more than 70% black beans?
