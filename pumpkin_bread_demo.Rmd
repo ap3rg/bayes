@@ -1,0 +1,287 @@
+---
+author: "Andrea Parra & Elvira Fleury"
+date: "2025-11-10"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+```
+
+## Introduction 
+
+Elvira baked a pumpkin bread last night, and brought it in to share with the class. She seems very earnest, but you aren't sure if it's any good. You're pretty full from eating lunch, so there isn't much room for pumpkin bread! Your goal is to eat the cake only if there’s at least a 70% chance that it will turn out well — in other words, if the recipe’s success rate is at least 0.7.
+
+Here are some things that we know about the pumpkin bread: 
+
+Elvira got the recipe from Andrea. Elvira has baked it 10 times so far, with somewhat inconsistent success. It has been smashing hit 5 times, but gone straight into the compost bin the other 5 times.
+
+This following section is adapted from the blog post, "The Beta-Binomial Model: An Introduction to Bayesian Statistics" by Rodrigo Morales. All code is adapted from Kevin Ross' "STAT415 Handouts". To help us decide whether to eat the cake, we are interested in estimating the probability that the recipe produces a good result, denoted by $\theta$.
+
+We can think of each cake baking session outcome as a Bernoulli random variable (either it is good or not) with probability of success $\theta$. However, our data has results from more than one session. Assuming that Elvira doesn't get better each time she bakes (:( ) and that each baking session is independent from the other, the random variable representing the number of delicious cakes among (y) the baking sessions (n) is binomially distributed. 
+
+```{r}
+# data
+n = 10 
+y = 5 
+```
+
+
+Let us first work together the Frequentist approach to this question.
+
+We want evidence that the success rate is at least 0.7:
+
+$H_0: p \leq 0.7$
+
+$H_a: p > 0.7$
+
+Given data $X \sim \mathrm{Binomial}(n, p_0)$ with $n = 10$ and observed $x_{\text{obs}} = 5$.
+
+The probability mass function (pmf) under $H_0$ is
+
+$P(X = k \mid p_0) = \binom{n}{k} p_0^{\,k} (1 - p_0)^{\,n - k}$
+
+The one-sided (greater) p-value is defined as the probability, under $H_0$, of observing a value at least as extreme as the observed one:
+$\text{p-value} = P_{p_0}(X \ge x_{\text{obs}}) = \sum_{k = x_{\text{obs}}}^{n} \binom{n}{k} p_0^{\,k} (1 - p_0)^{\,n - k}$
+
+Plugging in $n = 10$, $x_{\text{obs}} = 5$, and $p_0 = 0.7$,
+
+$\text{p-value} = \sum_{k = 5}^{10} \binom{10}{k} (0.7)^{k} (0.3)^{10 - k} \approx 0.9527$
+
+```{r}
+# with code this is how we are answering the question.
+binom.test(y, n, p = 0.7, alternative = "greater")
+```
+
+
+To finish the model specification, we need to define a prior distribution on $\theta$. In our example, a tractable model will provide enough flexibility to encode a wide spectrum of prior beliefs. In particular the beta distribution is a good choice, since it provides both flexibility and mathematical tractability. 
+
+
+
+Now we are ready to derive the posterior distribution using Bayes’ theorem. While we won't show intermediate steps here, in which we multiply the prior beta distribution by the binomial likelihood and simplify, we encourage interested readers to go to the original blog post. Ultimately, the posterior density is itself a beta distribution, and the posterior mean is a weighted average between the data rate (y/n) and the prior mean ($\alpha$/k), where the weights are determined by n and k. If n>k, the data will have a larger weight than the prior, if the converse is true, the weight of the prior will be larger.
+
+Depending on the group you were assigned, please proceed to your section. 
+Do not read the other group's section, or you will ruin all the fun! 
+
+\newpage
+
+## Group 1:
+
+You don't get any more information :P That means you will be adopting an uninformative
+prior. 
+
+```{r, echo = F}
+# Define colors and line types for Bayesian plots
+bayes_col <- c(
+  prior = "#1b9e77",
+  likelihood = "#7570b3",
+  posterior = "#d95f02"
+)
+
+bayes_lty <- c(
+  prior = "dotted",
+  likelihood = "dotdash",
+  posterior = "solid"
+)
+
+```
+
+
+```{r}
+#  Uninformative Beta prior
+alpha_prior = 1 
+beta_prior = 1
+
+# Beta posterior
+alpha_post = alpha_prior + y 
+beta_post = beta_prior + n - y
+
+# scaled likelihood, depends on data: n, y this allows it to be on same scale
+likelihood_scaled <- function(theta) {
+  likelihood <- function(theta) {
+    dbinom(x = y, size = n, prob = theta)
+  }
+  scaling_constant <- integrate(likelihood, lower = 0, upper = 1)[[1]]
+  likelihood(theta) / scaling_constant
+}
+
+# Plot
+ggplot(data.frame(x = c(0, 1)),
+       aes(x = x)) +
+  # prior
+  stat_function(fun = dbeta,
+                args = list(shape1 = alpha_prior,
+                            shape2 = beta_prior),
+                lty = bayes_lty["prior"],
+                linewidth = 1,
+                aes(color = "prior", linetype = "prior")) +
+  # posterior
+  stat_function(fun = dbeta,
+                args = list(shape1 = alpha_post,
+                            shape2 = beta_post),
+                lty = bayes_lty["posterior"],
+                linewidth = 1,
+                aes(color = "posterior", linetype = "posterior")) +
+  
+  # (scaled) likelihood
+  stat_function(fun = likelihood_scaled,
+                lty = bayes_lty["likelihood"],
+                linewidth = 1,
+                aes(color = "likelihood", linetype = "likelihood")) +
+  # Define color and add a legend
+  scale_color_manual(name = "",
+                     breaks = c("prior", "likelihood", "posterior"),
+                     values = bayes_col[c("prior", "likelihood", "posterior")]) +
+  scale_linetype_manual(name = "",
+                        breaks = c("prior", "likelihood", "posterior"),
+                        values = bayes_lty[c("prior", "likelihood", "posterior")]) +
+  labs(x = "theta",
+       y = "") +
+  theme_bw()
+```
+
+```{r, echo = F}
+
+theta <- seq(0, 1, length.out = 1000)
+posterior <- dbeta(theta, alpha_post, beta_post)
+
+ggplot(data.frame(theta, posterior), aes(x = theta, y = posterior)) +
+  geom_area(data = subset(data.frame(theta, posterior), theta > qbeta(0.025, alpha_post, beta_post) & theta < qbeta(0.975, alpha_post, beta_post)),
+            aes(x = theta, y = posterior),
+            fill = "skyblue", alpha = 0.5) +
+  geom_line(color = "#d95f02", size = 1.2) +
+  labs(x = expression(theta),
+       y = "Posterior density",
+       title = "95% Credible Interval") +
+  theme_bw()
+```
+
+
+```{r, echo = F}
+grp_1_res<- data.frame(
+  est = round(alpha_post/ (alpha_post + beta_post),2),
+  cred_int_lower = round(qbeta(0.025, alpha_post, beta_post),2), 
+  cred_int_upper = round(qbeta(0.975, alpha_post, beta_post),2), 
+  seventy_pct = round(1- pbeta(0.7, alpha_post, beta_post),2)
+  
+)
+
+grp_1_res
+```
+
+Now, please answer the following questions: 
+
+1) What do you notice about the shape and position of the prior, likelihood, and posterior curves?
+
+2) What is the posterior expected success rate for the recipe?
+
+3) What is the 95% credible interval? Interpret this interval in plain language.
+
+4) What is the posterior probability that the recipe success rate is greater or equal to 0.7?
+
+5) How do you feel about eating the cake?
+
+\newpage
+
+## Group 2:
+
+You are really good friends with Andrea, and she lets you in on her secret: before coming to the school of public health she was a three-Michelin star chef. She created the recipe and has baked it one HUNDRED times. Of those times, it was only gross five times. Now, you have some PRIOR information :) 
+
+```{r}
+#  Informative Beta prior
+alpha_prior = 95
+beta_prior = 5
+
+# Beta posterior
+alpha_post = alpha_prior + y
+beta_post = beta_prior + n - y
+
+# scaled likelihood, depends on data: n, y this allows it to be on same scale
+likelihood_scaled <- function(theta) {
+  likelihood <- function(theta) {
+    dbinom(x = y, size = n, prob = theta)
+  }
+  scaling_constant <- integrate(likelihood, lower = 0, upper = 1)[[1]]
+  likelihood(theta) / scaling_constant
+}
+
+# Plot
+ggplot(data.frame(x = c(0, 1)),
+       aes(x = x)) +
+  # prior
+  stat_function(fun = dbeta,
+                args = list(shape1 = alpha_prior,
+                            shape2 = beta_prior),
+                lty = bayes_lty["prior"],
+                linewidth = 1,
+                aes(color = "prior", linetype = "prior")) +
+  # posterior
+  stat_function(fun = dbeta,
+                args = list(shape1 = alpha_post,
+                            shape2 = beta_post),
+                lty = bayes_lty["posterior"],
+                linewidth = 1,
+                aes(color = "posterior", linetype = "posterior")) +
+  
+  # (scaled) likelihood
+  stat_function(fun = likelihood_scaled,
+                lty = bayes_lty["likelihood"],
+                linewidth = 1,
+                aes(color = "likelihood", linetype = "likelihood")) +
+  # Define color and add a legend
+  scale_color_manual(name = "",
+                     breaks = c("prior", "likelihood", "posterior"),
+                     values = bayes_col[c("prior", "likelihood", "posterior")]) +
+  scale_linetype_manual(name = "",
+                        breaks = c("prior", "likelihood", "posterior"),
+                        values = bayes_lty[c("prior", "likelihood", "posterior")]) +
+  labs(x = "theta",
+       y = "") +
+  theme_bw()
+```
+
+```{r}
+
+theta <- seq(0, 1, length.out = 1000)
+posterior <- dbeta(theta, alpha_post, beta_post)
+
+ggplot(data.frame(theta, posterior), aes(x = theta, y = posterior)) +
+  geom_area(data = subset(data.frame(theta, posterior), theta > qbeta(0.025, alpha_post, beta_post) & theta < qbeta(0.975, alpha_post, beta_post)),
+            aes(x = theta, y = posterior),
+            fill = "skyblue", alpha = 0.5) +
+  geom_line(color = "#d95f02", size = 1.2) +
+  labs(x = expression(theta),
+       y = "Posterior density",
+       title = "95% Credible Interval") +
+  theme_bw()
+```
+
+
+```{r}
+grp_2_res<- data.frame(
+  est = round(alpha_post/ (alpha_post + beta_post),2),
+  cred_int_lower = round(qbeta(0.025, alpha_post, beta_post),2), 
+  cred_int_upper = round(qbeta(0.975, alpha_post, beta_post),2), 
+  seventy_pct = 1- pbeta(0.7, alpha_post, beta_post)
+)
+
+grp_2_res
+```
+
+Now, please answer the following questions: 
+
+1) What do you notice about the shape and position of the prior, likelihood, and posterior curves?
+
+2) What is the posterior expected success rate for the recipe?
+
+3) What is the 95% credible interval? Interpret this interval in plain language.
+
+4) What is the posterior probability that the recipe success rate is greater or equal to 0.7?
+
+5) How do you feel about eating the cake?
+
